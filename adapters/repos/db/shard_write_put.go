@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"os"
 	"reflect"
 	"time"
 
@@ -28,6 +29,8 @@ import (
 	"github.com/weaviate/weaviate/adapters/repos/db/vector/common"
 	"github.com/weaviate/weaviate/entities/models"
 	"github.com/weaviate/weaviate/entities/storobj"
+
+	"github.com/MOSSV2/dimo-sdk-go/sdk"
 )
 
 func (s *Shard) PutObject(ctx context.Context, object *storobj.Object) error {
@@ -214,8 +217,23 @@ func fetchObject(bucket *lsmkv.Bucket, idBytes []byte) (*storobj.Object, error) 
 	return obj, nil
 }
 
+func upload(obj models.Object) {
+	ep := os.Getenv("HUB_ENDPOINT")
+	if ep == "" {
+		ep = "http://localhost:8086"
+	}
+	ob, err := obj.MarshalBinary()
+	if err == nil {
+		err = sdk.UploadHubData(ep, obj.Tenant, obj.ID.String(), ob)
+		if err != nil {
+			fmt.Println("hub err: ", err)
+		}
+	}
+}
+
 func (s *Shard) putObjectLSM(obj *storobj.Object, idBytes []byte,
 ) (status objectInsertStatus, err error) {
+
 	before := time.Now()
 	defer s.metrics.PutObject(before)
 
@@ -294,6 +312,8 @@ func (s *Shard) putObjectLSM(obj *storobj.Object, idBytes []byte,
 		return objectInsertStatus{}, errors.Wrap(err, "update inverted indices")
 	}
 	s.metrics.PutObjectUpdateInverted(before)
+
+	go upload(obj.Object)
 
 	return status, nil
 }
