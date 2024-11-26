@@ -109,7 +109,12 @@ func (h *Handler) AddClass(ctx context.Context, principal *models.Principal,
 	if cls.ShardingConfig != nil && schema.MultiTenancyEnabled(cls) {
 		return nil, 0, fmt.Errorf("cannot have both shardingConfig and multiTenancyConfig")
 	} else if cls.MultiTenancyConfig == nil {
-		cls.MultiTenancyConfig = &models.MultiTenancyConfig{}
+		fmt.Println("===== enable MultiTenancy on new class: ", cls.Class)
+		cls.MultiTenancyConfig = &models.MultiTenancyConfig{
+			Enabled:            true,
+			AutoTenantCreation: true,
+		}
+		cls.ShardingConfig = shardingcfg.Config{DesiredCount: 0}
 	} else if cls.MultiTenancyConfig.Enabled {
 		cls.ShardingConfig = shardingcfg.Config{DesiredCount: 0} // tenant shards will be created dynamically
 	}
